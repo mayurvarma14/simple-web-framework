@@ -9,6 +9,11 @@
       "name": "Leo",
       "age": 46,
       "id": 2
+    },
+    {
+      "name": "Faye Champlin",
+      "age": 21,
+      "id": 3
     }
   ]
 }
