@@ -1,38 +1,58 @@
-import axios, { AxiosResponse } from 'axios';
+import { AxiosResponse } from 'axios';
+import { Attributes } from './Attributes';
 import { Eventing } from './Eventing';
-
+import { Sync } from './Sync';
 interface UserProps {
     id?: number;
     name?: string;
     age?: number;
 }
 
+const rootUrl = 'http://localhost:3000/users';
 export class User {
 
     public events: Eventing = new Eventing();
+    public sync: Sync<UserProps> = new Sync<UserProps>(rootUrl);
+    public attributes: Attributes<UserProps>;
 
-    constructor(private data: UserProps = {}) { }
-
-    get(propName: keyof UserProps): string | number | undefined {
-        return this.data[propName];
+    constructor(attributes: UserProps) {
+        this.attributes = new Attributes<UserProps>(attributes);
     }
 
-    set(update: UserProps): void {
-        Object.assign(this.data, update);
+    get on() {
+        return this.events.on;
     }
 
-    fetch(): void {
-        axios.get(`http://localhost:3000/users/${this.get('id')}`)
-            .then((response: AxiosResponse): void => {
-                this.set(response.data);
-            });
+    get trigger() {
+        return this.events.trigger;
+    }
+
+    get get() {
+        return this.attributes.get;
+    }
+
+    set(update: UserProps) {
+        this.attributes.set(update);
+        this.events.trigger('change');
+    }
+
+    fetch() {
+        const id = this.get('id');
+        if (typeof id !== 'number') {
+            throw new Error('Cannot fetch without an id');
+        }
+        this.sync.fetch(id).then((response: AxiosResponse) => {
+            this.set(response.data);
+        });
     }
     save(): void {
-        const id = this.get('id');
-        if (id) {
-            axios.put(`http://localhost:3000/users/${id}`);
-        } else {
-            axios.post(`http://localhost:3000/users`, this.data);
-        }
+
+        this.sync.save(this.attributes.getAll())
+            .then((response: AxiosResponse) => {
+                this.trigger('save');
+            })
+            .catch(() => {
+                this.trigger('error');
+            });
     }
 }
